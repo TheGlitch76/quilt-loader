@@ -137,6 +137,8 @@ public class TransformCache {
 				Map<String, String> oldOptions = new TreeMap<>(options);
 				String newKey = null;
 				String diffKey = null;
+				String diffHashOld = null;
+				String diffHashNew = null;
 				while ((line = br.readLine()) != null) {
 					if (line.isEmpty()) {
 						continue;
@@ -148,6 +150,8 @@ public class TransformCache {
 					if (oldValue != null) {
 						if (!value.equals(oldValue)) {
 							diffKey = key;
+							diffHashOld = oldValue;
+							diffHashNew = value;
 						}
 					} else {
 						newKey = key;
@@ -157,11 +161,11 @@ public class TransformCache {
 				if (!oldOptions.isEmpty() || newKey != null || diffKey != null) {
 					final String log = "Not reusing previous transform cache: ";
 					if (!oldOptions.isEmpty()) {
-							Log.info(LogCategory.CACHE, log + "missing '" + oldOptions.keySet().iterator().next());
+						Log.info(LogCategory.CACHE, log + "missing '" + oldOptions.keySet().iterator().next() + "'");
 					} else if (newKey != null) {
 						Log.info(LogCategory.CACHE, log + "new '" + newKey + "'");
 					} else { // diffKey != null
-						Log.info(LogCategory.CACHE, log + "different " + diffKey);
+						Log.info(LogCategory.CACHE, log + "different '" + diffKey + "': '" + diffHashOld + "' -> '" + diffHashNew + "'");
 					}
 
 					erasePreviousTransformCache(transformCacheFolder, cacheFile, null);
