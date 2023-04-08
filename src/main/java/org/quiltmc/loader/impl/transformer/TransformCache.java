@@ -19,17 +19,13 @@ package org.quiltmc.loader.impl.transformer;
 import java.io.BufferedReader;
 import java.io.IOError;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +36,6 @@ import java.util.TreeMap;
 import org.quiltmc.loader.api.FasterFiles;
 import org.quiltmc.loader.api.plugin.solver.ModLoadOption;
 import org.quiltmc.loader.api.plugin.solver.ModSolveResult;
-import org.quiltmc.loader.impl.QuiltLoaderImpl;
 import org.quiltmc.loader.impl.discovery.ModResolutionException;
 import org.quiltmc.loader.impl.discovery.RuntimeModRemapper;
 import org.quiltmc.loader.impl.filesystem.PartiallyWrittenIOException;
@@ -50,7 +45,6 @@ import org.quiltmc.loader.impl.filesystem.QuiltZipFileSystem;
 import org.quiltmc.loader.impl.filesystem.QuiltZipPath;
 import org.quiltmc.loader.impl.util.FilePreloadHelper;
 import org.quiltmc.loader.impl.util.FileSystemUtil;
-import org.quiltmc.loader.impl.util.FileUtil;
 import org.quiltmc.loader.impl.util.HashUtil;
 import org.quiltmc.loader.impl.util.QuiltLoaderInternal;
 import org.quiltmc.loader.impl.util.QuiltLoaderInternalType;
@@ -117,9 +111,7 @@ public class TransformCache {
 			optionList.append(entry.getValue());
 			optionList.append("\n");
 		}
-		String options = optionList.toString();
-		optionList = null;
-		return options;
+		return optionList.toString();
 	}
 
 	private static QuiltZipPath checkTransformCache(Path transformCacheFolder, Map<String, String> options)
@@ -143,8 +135,8 @@ public class TransformCache {
 			try (BufferedReader br = Files.newBufferedReader(optionFile, StandardCharsets.UTF_8)) {
 				String line;
 				Map<String, String> oldOptions = new TreeMap<>(options);
-				Map<String, String> newOptions = new TreeMap<>();
-				Map<String, String> differingOptions = new TreeMap<>();
+				String newKey = null;
+				String diffKey = null;
 				while ((line = br.readLine()) != null) {
 					if (line.isEmpty()) {
 						continue;
@@ -155,32 +147,23 @@ public class TransformCache {
 					String oldValue = oldOptions.remove(key);
 					if (oldValue != null) {
 						if (!value.equals(oldValue)) {
-							differingOptions.put(key, value);
+							diffKey = key;
 						}
 					} else {
-						newOptions.put(key, value);
+						newKey = key;
 					}
 				}
 
-				if (!oldOptions.isEmpty() || !newOptions.isEmpty() || !differingOptions.isEmpty()) {
-					Log.info(LogCategory.CACHE, "Not reusing previous transform cache since it has different keys:");
-
-					for (Map.Entry<String, String> old : oldOptions.entrySet()) {
-						Log.info(LogCategory.CACHE, "  Missing: '" + old.getKey() + "': '" + old.getValue() + "'");
+				if (!oldOptions.isEmpty() || newKey != null || diffKey != null) {
+					final String log = "Not reusing previous transform cache: ";
+					if (!oldOptions.isEmpty()) {
+							Log.info(LogCategory.CACHE, log + "missing '" + oldOptions.keySet().iterator().next());
+					} else if (newKey != null) {
+						Log.info(LogCategory.CACHE, log + "new '" + newKey + "'");
+					} else { // diffKey != null
+						Log.info(LogCategory.CACHE, log + "different " + diffKey);
 					}
 
-					for (Map.Entry<String, String> added : newOptions.entrySet()) {
-						Log.info(LogCategory.CACHE, "  Included: '" + added.getKey() + "': '" + added.getValue() + "'");
-					}
-
-					for (Map.Entry<String, String> diff : differingOptions.entrySet()) {
-						String key = diff.getKey();
-						String oldValue = diff.getValue();
-						String newValue = options.get(key);
-						Log.info(
-							LogCategory.CACHE, "  Different: '" + key + "': '" + oldValue + "' -> '" + newValue + "'"
-						);
-					}
 					erasePreviousTransformCache(transformCacheFolder, cacheFile, null);
 					return null;
 				}
@@ -228,8 +211,6 @@ public class TransformCache {
 		}
 	}
 
-	static final boolean WRITE_CUSTOM = true;
-
 	private static QuiltZipPath createTransformCache(Path transformCacheFile, String options, List<
 		ModLoadOption> modList, ModSolveResult result) throws ModResolutionException {
 
@@ -254,9 +235,6 @@ public class TransformCache {
 		}
 
 		try (FileSystemUtil.FileSystemDelegate fs = FileSystemUtil.getJarFileSystem(transformCacheFile, true)) {
-			URI fileUri = transformCacheFile.toUri();
-			URI zipUri = new URI("jar:" + fileUri.getScheme(), fileUri.getPath(), null);
-
 			Path inner = fs.get().getPath("/");
 
 			populateTransformCache(inner, modList, result);
@@ -266,8 +244,6 @@ public class TransformCache {
 
 		} catch (IOException e) {
 			throw new ModResolutionException("Failed to create the transform bundle!", e);
-		} catch (URISyntaxException e) {
-			throw new ModResolutionException(e);
 		}
 
 		return openCache(transformCacheFile);
