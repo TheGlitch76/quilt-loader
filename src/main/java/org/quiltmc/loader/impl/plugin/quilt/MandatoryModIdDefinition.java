@@ -23,7 +23,7 @@ import org.quiltmc.loader.impl.discovery.ModCandidate;
 import org.quiltmc.loader.impl.util.QuiltLoaderInternal;
 import org.quiltmc.loader.impl.util.QuiltLoaderInternalType;
 
-/** A concrete definition that mandates that the modid must be loaded by the given singular {@link ModCandidate}, and no
+/** A concrete definition that mandates that the modid must be loaded by the given singular {@link ModLoadOption}, and no
  * others. (The resolver pre-validates that we don't have duplicate mandatory mods, so this is always valid by the time
  * this is used). */
 @QuiltLoaderInternal(QuiltLoaderInternalType.NEW_INTERNAL)

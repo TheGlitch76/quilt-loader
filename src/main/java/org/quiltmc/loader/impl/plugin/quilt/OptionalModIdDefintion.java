@@ -129,26 +129,13 @@ public final class OptionalModIdDefintion extends ModIdDefinition {
 
 	@Override
 	public void define(RuleDefiner definer) {
-		boolean anyAreAlways = false;
-
-		for (ModLoadOption mod : sources) {
-			if (mod.metadata().loadType() == ModLoadType.ALWAYS) {
-				anyAreAlways = true;
-				break;
-			}
-		}
-
 		recalculateWeights();
 
 		LoadOption[] array = sources.toArray(new LoadOption[0]);
 
 		array = definer.deduplicate(array);
 
-		if (anyAreAlways) {
-			definer.exactly(1, array);
-		} else {
-			definer.atMost(1, array);
-		}
+		definer.atMost(1, array);
 	}
 
 	@Override
